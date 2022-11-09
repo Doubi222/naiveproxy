@@ -767,6 +767,7 @@ void ThreadCache::TryPurge() {
 // static
 void ThreadCache::PurgeCurrentThread() {
   auto* tcache = Get();
+  fprintf(stderr, "ThreadCache::PurgeCurrentThread tcache=%p\n", tcache);
   if (IsValid(tcache))
     tcache->Purge();
 }
