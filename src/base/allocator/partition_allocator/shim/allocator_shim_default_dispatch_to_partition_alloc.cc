@@ -300,7 +300,6 @@ void PartitionAllocSetCallNewHandlerOnMallocFailure(bool value) {
 }
 
 void* PartitionMalloc(const AllocatorDispatch*, size_t size, void* context) {
-  fprintf(stderr, "PartitionMalloc %zu\n", size);
   partition_alloc::ScopedDisallowAllocations guard{};
   return Allocator()->AllocWithFlagsNoHooks(
       g_alloc_flags, MaybeAdjustSize(size),
