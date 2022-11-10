@@ -16,6 +16,7 @@
 #include "base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #include "base/allocator/partition_allocator/thread_cache.h"
 #include "base/feature_list.h"
+#include "base/process/memory.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
@@ -40,6 +41,15 @@ void ReconfigureEarly() {
   partition_alloc::EarlyMallocZoneRegistration();
 #endif
 
+  // content/app/content_main.cc: ChromeMain()
+#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(USE_ALLOCATOR_SHIM) && BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  // Call this early on in order to configure heap workarounds. This must be
+  // called from chrome.dll. This may be a NOP on some platforms.
+  allocator_shim::ConfigurePartitionAlloc();
+#endif
+#endif  // BUILDFLAG(IS_WIN)
+
   // content/app/content_main.cc: RunContentProcess()
 #if BUILDFLAG(IS_APPLE) && BUILDFLAG(USE_ALLOCATOR_SHIM)
   // The static initializer function for initializing PartitionAlloc
@@ -50,11 +60,28 @@ void ReconfigureEarly() {
   allocator_shim::InitializeAllocatorShim();
 #endif
 
+  // content/app/content_main.cc: RunContentProcess()
+  base::EnableTerminationOnOutOfMemory();
+
+  // content/app/content_main.cc: RunContentProcess()
+  base::EnableTerminationOnHeapCorruption();
+
+  // content/app/content_main.cc: RunContentProcess()
+  //   content/app/content_main_runner_impl.cc: Initialize()
+  //     ReconfigureEarlyish():
   // These initializations are only relevant for PartitionAlloc-Everywhere
   // builds.
 #if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   allocator_shim::EnablePartitionAllocMemoryReclaimer();
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+
+  // content/app/content_main.cc: RunContentProcess()
+  //   content/app/content_main_runner_impl.cc: Initialize()
+  // If we are on a platform where the default allocator is overridden (e.g.
+  // with PartitionAlloc on most platforms) smoke-tests that the overriding
+  // logic is working correctly. If not causes a hard crash, as its unexpected
+  // absence has security implications.
+  CHECK(base::allocator::IsAllocatorInitialized());
 }
 
 void ReconfigureAfterFeatureListInit() {
